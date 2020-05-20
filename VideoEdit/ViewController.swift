@@ -82,8 +82,46 @@ class videoEditor {
         
         let playerItem = AVPlayerItem.init(asset: mutableComposition)
         
+        //New implementation
+        let sub_filter = CIFilter(name: "CISubtractBlendMode")!//CISubtractBlendMode
+        let multi_filter = CIFilter(name: "CIMultiplyBlendMode")!//CIMultiplyBlendMode
+        let final_filter = CIFilter(name: "CISourceOverCompositing")!//CIMultiplyBlendMode
         
-        playerItem.videoComposition = AVVideoComposition(asset: asset) { request in
+        playerItem.videoComposition = AVVideoComposition(asset: asset, applyingCIFiltersWithHandler: { request in
+            
+            // Clamp to avoid blurring transparent pixels at the image edges
+            let source = request.sourceImage.clampedToExtent()
+            
+            //filter.setValue(source, forKey: kCIInputImageKey)
+            //filter.setValue(ciImg1, forKey: kCIInputBackgroundImageKey)
+            
+            //let duration = asset.duration
+            //let durationTime = CMTimeGetSeconds(duration)
+            
+            sub_filter.setValue(source, forKey: kCIInputImageKey)
+            sub_filter.setValue(ciImg1, forKey: kCIInputBackgroundImageKey)
+            
+            let output_1 = sub_filter.outputImage!.cropped(to: request.sourceImage.extent)
+            
+            multi_filter.setValue(source, forKey: kCIInputImageKey)
+            multi_filter.setValue(ciImg1, forKey: kCIInputBackgroundImageKey)
+            
+            let output_2 = multi_filter.outputImage!.cropped(to: request.sourceImage.extent)
+            
+            
+            final_filter.setValue(output_2, forKey: kCIInputImageKey)
+            final_filter.setValue(output_1, forKey: kCIInputBackgroundImageKey)
+            
+            // Crop the blurred output to the bounds of the original image
+            let output = final_filter.outputImage!.cropped(to: request.sourceImage.extent)
+            
+            // Provide the filter output to the composition
+            request.finish(with: output, context: nil)
+        })
+
+        
+        //Previous implementation
+        /*playerItem.videoComposition = AVVideoComposition(asset: asset) { request in
             let blurred = request.sourceImage.clampedToExtent()
             let composite = blurred
                 .applyingFilter("CISubtractBlendMode",
@@ -101,7 +139,7 @@ class videoEditor {
 */
             let output = composite.clampedToExtent()
             request.finish(with: output, context: nil)
-        }
+        }*/
         
         //CIBlendWithMask
         //CISoftLightBlendMode
